@@ -1,0 +1,160 @@
+/* 全局样式文件 */
+
+/* 基础样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 全局字体设置 */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #333;
+  line-height: 1.5;
+  font-size: 16px;
+}
+
+/* 移动端触摸优化 */
+a, button, input, textarea, select, .van-button, .van-cell, .van-tabbar-item {
+  touch-action: manipulation;
+}
+
+/* 修复iOS输入框内阴影 */
+input, textarea {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0;
+}
+
+/* 增强可点击区域大小 */
+.van-button, .van-field__button, .action-card, .template-card, .platform-card, .coupon-card {
+  position: relative;
+}
+
+.van-button::after, .van-field__button::after, .action-card::after, .template-card::after, .platform-card::after, .coupon-card::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  z-index: -1;
+}
+
+/* 自定义滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
+
+/* 激活状态反馈 */
+.van-button--primary:active,
+.action-card:active,
+.template-card:active,
+.van-tabbar-item--active {
+  opacity: 0.85;
+  transform: scale(0.98);
+  transition: all 0.2s;
+}
+
+/* 页面过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: all 0.25s;
+}
+
+.slide-left-enter-from {
+  transform: translateX(100%);
+}
+
+.slide-left-leave-to {
+  transform: translateX(-100%);
+}
+
+.slide-right-enter-from {
+  transform: translateX(-100%);
+}
+
+.slide-right-leave-to {
+  transform: translateX(100%);
+}
+
+/* 针对不同设备的适配 */
+@media screen and (max-width: 320px) {
+  body {
+    font-size: 14px;
+  }
+  
+  .van-button {
+    font-size: 14px;
+    padding: 0 12px;
+  }
+}
+
+@media screen and (min-width: 768px) {
+  .van-form, .van-cell-group {
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* 适配深色模式 */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #121212;
+    color: #f5f5f5;
+  }
+  
+  .van-cell, .van-nav-bar, .van-tabbar {
+    background-color: #1e1e1e;
+    color: #f5f5f5;
+  }
+  
+  .van-cell::after {
+    border-bottom: 1px solid #333;
+  }
+  
+  .van-nav-bar__title, .van-cell__title {
+    color: #f5f5f5;
+  }
+  
+  .van-nav-bar .van-icon, .van-cell__right-icon {
+    color: #aaa;
+  }
+}
+
+/* 优化触摸滚动体验 */
+.content-area, .van-cell-group {
+  -webkit-overflow-scrolling: touch;
+}
