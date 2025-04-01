@@ -25,6 +25,12 @@ const selectedPlatforms = ref([]);
 const userInputContent = ref('');
 const aiGeneratedContent = ref('');
 
+// 媒体上传相关的状态变量
+const imageFileList = ref([]);
+const videoFileList = ref([]);
+const uploadingMedia = ref(false);
+const activeMediaTab = ref('image'); // 'image' 或 'video'
+
 const enhanceOptions = ref({
   optimizeText: true,
   addHashtags: true,
@@ -41,10 +47,13 @@ const contentStyles = [
 
 // Available platforms for publishing
 const platformOptions = [
-  { text: 'Meituan', value: 'Meituan' },
-  { text: 'Dianping', value: 'Dianping' },
-  { text: 'Ele.me', value: 'Ele.me' },
-  { text: 'All Platforms', value: 'All Platforms' }
+  { text: 'Facebook', value: 'Facebook' },
+  { text: 'Instagram', value: 'Instagram' },
+  { text: 'Twitter', value: 'Twitter' },
+  { text: 'TikTok', value: 'TikTok' },
+  { text: 'Google Business', value: 'GoogleBusiness' },
+  { text: 'LinkedIn', value: 'LinkedIn' },
+  { text: 'All Platforms', value: 'AllPlatforms' }
 ];
 
 // Watch for style changes to update AI content preview
@@ -58,7 +67,7 @@ watch(selectedStyle, (newStyle) => {
 // Generate AI enhanced content based on user input and selected style
 const generateAIContent = () => {
   if (!userInputContent.value.trim()) {
-    showErrorToast('Please enter some content to enhance');
+    showErrorToast('Please enter content to enhance');
     return;
   }
   
@@ -85,6 +94,58 @@ const generateAIContent = () => {
   }, 1500);
 };
 
+// 处理图片上传
+const onImageUploaded = (file) => {
+  // 这里通常会上传到服务器
+  // 在演示中，我们只是在本地处理
+  if (file.file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.readAsDataURL(file.file);
+    reader.onload = () => {
+      file.content = reader.result;
+      imageFileList.value.push(file);
+      
+      // 如果AI生成图片选项打开，关闭该选项
+      if (enhanceOptions.value.generateImage) {
+        enhanceOptions.value.generateImage = false;
+      }
+    };
+  } else {
+    showErrorToast('Please upload an image file');
+    return false; // 阻止文件添加到列表
+  }
+};
+
+// 处理视频上传
+const onVideoUploaded = (file) => {
+  // 验证视频文件
+  if (file.file.type.startsWith('video/')) {
+    // 检查文件大小，限制为100MB
+    if (file.file.size > 100 * 1024 * 1024) {
+      showErrorToast('Video size cannot exceed 100MB');
+      return false;
+    }
+    
+    const reader = new FileReader();
+    reader.readAsDataURL(file.file);
+    reader.onload = () => {
+      file.content = reader.result;
+      videoFileList.value.push(file);
+    };
+  } else {
+    showErrorToast('Please upload a video file');
+    return false; // 阻止文件添加到列表
+  }
+};
+
+// 删除已上传的媒体文件
+const removeMedia = (file, fileList, type) => {
+  const index = fileList.findIndex(item => item.uid === file.uid);
+  if (index !== -1) {
+    fileList.splice(index, 1);
+  }
+};
+
 // Universal publishing function
 const universalPublish = () => {
   // Validate platform selection
@@ -100,8 +161,21 @@ const universalPublish = () => {
     isPublishing.value = false;
     showPublishOptions.value = false;
     
+    // 准备发布信息
+    let mediaInfo = '';
+    if (imageFileList.value.length > 0) {
+      mediaInfo += ` including ${imageFileList.value.length} image${imageFileList.value.length > 1 ? 's' : ''}`;
+    }
+    if (videoFileList.value.length > 0) {
+      mediaInfo += ` including ${videoFileList.value.length} video${videoFileList.value.length > 1 ? 's' : ''}`;
+    }
+    
     // Show success message
-    showSuccessToast(`Successfully published to ${selectedPlatforms.value.length} platforms with ${selectedStyle.value} style!`);
+    showSuccessToast(`Successfully published to ${selectedPlatforms.value.length} platform${selectedPlatforms.value.length > 1 ? 's' : ''} with ${selectedStyle.value} style${mediaInfo}!`);
+    
+    // 重置媒体上传状态
+    imageFileList.value = [];
+    videoFileList.value = [];
   }, 2000);
 };
 
@@ -170,12 +244,12 @@ const showErrorToast = (message) => {
       safe-area-inset-bottom
     >
       <div class="popup-header">
-        <h2>Universal Publishing</h2>
+        <h2>One-Click Publish</h2>
         <van-icon name="cross" @click="showPublishOptions = false" />
       </div>
 
       <div class="publish-options-content">
-        <h3 class="section-title">AI Enhancement Options</h3>
+        <h3 class="section-title">Content Editing Options</h3>
         
         <div class="option-section user-input-section">
           <h4>Your Content</h4>
@@ -184,7 +258,7 @@ const showErrorToast = (message) => {
               v-model="userInputContent"
               type="textarea"
               rows="4"
-              placeholder="Enter your promotion or content here..."
+              placeholder="Enter your promotion or content to publish..."
               class="content-textarea"
             />
             <van-button 
@@ -196,6 +270,76 @@ const showErrorToast = (message) => {
             >
               {{ isGeneratingContent ? 'Generating...' : 'Enhance with AI' }}
             </van-button>
+          </div>
+        </div>
+        
+        <!-- 新增媒体上传部分 -->
+        <div class="option-section media-upload-section">
+          <h4>Upload Media</h4>
+          <div class="media-tabs">
+            <div 
+              :class="['media-tab', { active: activeMediaTab === 'image' }]" 
+              @click="activeMediaTab = 'image'"
+            >
+              <van-icon name="photo-o" />
+              <span>Images</span>
+            </div>
+            <div 
+              :class="['media-tab', { active: activeMediaTab === 'video' }]" 
+              @click="activeMediaTab = 'video'"
+            >
+              <van-icon name="video-o" />
+              <span>Videos</span>
+            </div>
+          </div>
+          
+          <div class="media-content">
+            <div v-show="activeMediaTab === 'image'" class="image-uploader">
+              <van-uploader
+                v-model:file-list="imageFileList"
+                multiple
+                :max-count="9"
+                :after-read="onImageUploaded"
+                :before-delete="(file) => removeMedia(file, imageFileList, 'image')"
+                preview-size="80px"
+                upload-text="Upload Images"
+                accept="image/*"
+              >
+                <template #upload>
+                  <div class="upload-trigger">
+                    <van-icon name="photograph" />
+                    <span>Upload Images</span>
+                  </div>
+                </template>
+              </van-uploader>
+              <div class="upload-tips" v-if="imageFileList.length > 0">
+                {{ imageFileList.length }} image{{ imageFileList.length > 1 ? 's' : '' }} selected
+              </div>
+            </div>
+            
+            <div v-show="activeMediaTab === 'video'" class="video-uploader">
+              <van-uploader
+                v-model:file-list="videoFileList"
+                multiple
+                :max-count="3"
+                :after-read="onVideoUploaded"
+                :before-delete="(file) => removeMedia(file, videoFileList, 'video')"
+                preview-size="120px"
+                upload-text="Upload Videos"
+                accept="video/*"
+              >
+                <template #upload>
+                  <div class="upload-trigger video-trigger">
+                    <van-icon name="video-o" />
+                    <span>Upload Videos</span>
+                    <div class="upload-tip">Supports mp4, mov formats, max 100MB</div>
+                  </div>
+                </template>
+              </van-uploader>
+              <div class="upload-tips" v-if="videoFileList.length > 0">
+                {{ videoFileList.length }} video{{ videoFileList.length > 1 ? 's' : '' }} selected
+              </div>
+            </div>
           </div>
         </div>
         
@@ -216,12 +360,13 @@ const showErrorToast = (message) => {
 
         <div class="option-section">
           <h4>Target Platforms</h4>
-          <van-checkbox-group v-model="selectedPlatforms">
+          <van-checkbox-group v-model="selectedPlatforms" class="platform-checkbox-group">
             <van-checkbox 
               v-for="platform in platformOptions"
               :key="platform.value"
               :name="platform.value"
               checked-color="var(--primary-color)"
+              class="platform-checkbox"
             >
               {{ platform.text }}
             </van-checkbox>
@@ -241,9 +386,14 @@ const showErrorToast = (message) => {
                 <van-switch v-model="enhanceOptions.addHashtags" size="24" active-color="var(--primary-color)" />
               </template>
             </van-cell>
-            <van-cell center title="Generate matching image">
+            <van-cell center title="Generate matching image" :disabled="imageFileList.length > 0">
               <template #right-icon>
-                <van-switch v-model="enhanceOptions.generateImage" size="24" active-color="var(--primary-color)" />
+                <van-switch 
+                  v-model="enhanceOptions.generateImage" 
+                  size="24" 
+                  active-color="var(--primary-color)"
+                  :disabled="imageFileList.length > 0"
+                />
               </template>
             </van-cell>
           </van-cell-group>
@@ -264,6 +414,35 @@ const showErrorToast = (message) => {
                 <p v-else-if="selectedStyle === 'promotional'">LIMITED TIME OFFER! Don't miss this incredible chance to save big!</p>
                 <p v-else-if="selectedStyle === 'formal'">We are pleased to announce a special promotion exclusively available to our esteemed clientele.</p>
               </div>
+              
+              <!-- 显示已上传图片的预览 -->
+              <div v-if="imageFileList.length > 0" class="preview-uploaded-images">
+                <div class="media-preview-label">Uploaded Images:</div>
+                <div class="image-preview-grid">
+                  <div v-for="(image, index) in imageFileList" :key="index" class="image-preview-item">
+                    <van-image 
+                      :src="image.content || image.url" 
+                      fit="cover"
+                      width="60" 
+                      height="60"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 显示已上传视频的预览 -->
+              <div v-if="videoFileList.length > 0" class="preview-uploaded-videos">
+                <div class="media-preview-label">Uploaded Videos:</div>
+                <div class="video-preview-list">
+                  <div v-for="(video, index) in videoFileList" :key="index" class="video-preview-item">
+                    <div class="video-placeholder">
+                      <van-icon name="video-o" size="24" />
+                      <span>Video {{ index + 1 }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               <div v-if="enhanceOptions.addHashtags" class="preview-hashtags">
                 <span>#specialoffer</span>
                 <span>#limitedtime</span>
@@ -476,239 +655,265 @@ input, textarea {
   gap: 12px;
 }
 
-.publish-options-popup .style-option {
+.style-option {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  padding: 12px 8px;
+  background-color: white;
   border-radius: 8px;
-  background-color: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  transition: all 0.2s ease;
+  padding: 12px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.publish-options-popup .style-option .van-icon {
+.style-option .van-icon {
   font-size: 24px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  color: #888;
 }
 
-.publish-options-popup .style-option.active {
-  color: var(--blue-color);
-  background-color: rgba(25, 137, 250, 0.1);
-  box-shadow: 0 2px 8px rgba(25, 137, 250, 0.2);
-  transform: translateY(-2px);
+.style-option span {
+  font-size: 14px;
+  color: #666;
 }
 
-.publish-options-popup .style-option span {
-  font-size: 12px;
-  text-align: center;
+.style-option.active {
+  background-color: rgba(var(--primary-color-rgb, 255, 107, 107), 0.1);
+  border: 1px solid var(--primary-color);
 }
 
-.publish-options-popup .van-checkbox-group {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-}
-
-.publish-options-popup .van-checkbox {
-  margin-bottom: 0;
-}
-
-.publish-options-popup .publish-actions {
-  position: sticky;
-  bottom: 0;
-  background-color: #fff;
-  padding: 16px;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-  margin: 0 -16px -16px -16px;
-  z-index: 1;
-}
-
-.publish-options-popup .publish-actions .van-button {
-  height: 44px;
-  border-radius: 22px;
-  font-weight: bold;
-}
-
-/* User input section styles */
-.user-input-section {
-  margin-bottom: 24px;
+.style-option.active .van-icon,
+.style-option.active span {
+  color: var(--primary-color);
 }
 
 .content-input-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .content-textarea {
-  width: 100%;
-  background-color: #fff;
+  background-color: white;
   border-radius: 8px;
+  margin-bottom: 12px;
 }
 
 .generate-btn {
   align-self: flex-end;
-  border-radius: 20px;
-  padding: 0 16px;
-  font-weight: bold;
-  box-shadow: 0 2px 8px rgba(25, 137, 250, 0.2);
-  transition: all 0.2s ease;
 }
 
-.generate-btn:active {
-  transform: scale(0.97);
-}
-
-.publish-options-popup .enhancement-options {
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.preview-section {
-  border: none;
-  background-color: transparent;
-  padding: 0;
+.enhancement-options {
+  background-color: white;
+  border-radius: 8px;
 }
 
 .preview-container {
-  margin-top: 0;
-  padding: 0;
-  background-color: transparent;
-  box-shadow: none;
+  margin-top: 16px;
 }
 
 .preview-card {
   background-color: white;
   border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  position: relative;
   overflow: hidden;
-  border: 1px solid #eee;
-}
-
-.preview-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background-color: var(--blue-color);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
 .preview-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .preview-style-tag {
-  padding: 4px 10px;
-  background-color: var(--blue-color);
-  color: white;
-  border-radius: 20px;
-  font-size: 12px;
+  font-size: 14px;
+  color: var(--blue-color);
+  font-weight: 500;
   text-transform: capitalize;
-  letter-spacing: 0.5px;
 }
 
 .preview-action-icon {
-  font-size: 18px;
-  color: #888;
+  font-size: 20px;
+  color: #999;
 }
 
 .preview-content {
-  margin-bottom: 16px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #333;
+  padding: 16px;
+  color: var(--text-color);
+  line-height: 1.5;
+  font-size: 15px;
 }
 
 .preview-hashtags {
+  padding: 0 16px 16px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  font-size: 13px;
-  color: var(--blue-color);
 }
 
 .preview-hashtags span {
-  background-color: rgba(25, 137, 250, 0.1);
-  padding: 4px 10px;
-  border-radius: 20px;
+  background-color: rgba(var(--blue-color-rgb, 25, 137, 250), 0.1);
+  color: var(--blue-color);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
 }
 
 .preview-image {
-  margin-top: 16px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  height: auto;
 }
 
 .preview-image img {
   width: 100%;
-  height: auto;
   display: block;
-  object-fit: cover;
 }
 
-/* Ensure good spacing at bottom for iOS safe area */
-@supports (padding: max(0px)) {
-  .publish-options-popup {
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
-  }
-  
-  .publish-options-popup .publish-actions {
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
-  }
+.publish-actions {
+  margin-top: 24px;
 }
 
-/* Additional mobile optimizations */
-@media (max-width: 480px) {
-  .publish-options-popup .option-section {
-    padding: 12px;
-  }
-  
-  .preview-card {
-    border-radius: 8px;
-  }
-  
-  .content-input-container {
-    gap: 8px;
-  }
-  
-  .generate-btn {
-    font-size: 12px;
-    padding: 0 12px;
-  }
+/* 媒体上传相关样式 */
+.media-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
 }
 
-/* 全局响应式调整 */
-@media screen and (max-width: 320px) {
-  .content-area {
-    font-size: 14px;
-  }
+.media-tab {
+  padding: 8px 16px;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
 }
 
-@media screen and (min-width: 375px) {
-  .content-area {
-    max-width: 480px;
-    margin: 0 auto;
-  }
+.media-tab .van-icon {
+  font-size: 18px;
+  margin-right: 4px;
+  color: #999;
 }
 
-/* 适配横屏 */
-@media screen and (orientation: landscape) {
-  .app-container {
-    max-width: 480px;
-    margin: 0 auto;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  }
+.media-tab span {
+  font-size: 14px;
+  color: #666;
+}
+
+.media-tab.active {
+  border-bottom-color: var(--primary-color);
+}
+
+.media-tab.active .van-icon,
+.media-tab.active span {
+  color: var(--primary-color);
+}
+
+.upload-trigger {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  border: 1px dashed #ddd;
+  border-radius: 8px;
+}
+
+.upload-trigger.video-trigger {
+  width: 120px;
+  height: 120px;
+}
+
+.upload-trigger .van-icon {
+  font-size: 24px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.upload-trigger span {
+  font-size: 12px;
+  color: #999;
+}
+
+.upload-tip {
+  font-size: 10px;
+  color: #999;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.upload-tips {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #999;
+}
+
+.image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.video-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.video-placeholder {
+  width: 100px;
+  height: 60px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-placeholder .van-icon {
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.video-placeholder span {
+  font-size: 12px;
+  color: #666;
+}
+
+.media-preview-label {
+  font-size: 13px;
+  color: #666;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.preview-uploaded-images,
+.preview-uploaded-videos {
+  padding: 0 16px;
+}
+
+/* Platform styling */
+.platform-checkbox-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.platform-checkbox {
+  margin-bottom: 0;
+  font-size: 14px;
+}
+
+.platform-checkbox .van-checkbox__label {
+  font-size: 14px;
+  color: var(--text-color);
 }
 </style>
 
